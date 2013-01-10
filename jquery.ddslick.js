@@ -16,6 +16,12 @@
         }
     };
 
+    // fabioz: Put some things out which we want changed
+    var paddingSelect = '2px 0px 2px 0px';
+    var paddingOptions = '6px 0px 6px 6px';
+    var fontWeigth = 'normal';
+    var textMarginLeft = '10px';
+    
     var methods = {},
 
     //Set defauls for the control
@@ -34,26 +40,30 @@
         onSelected: function () { }
     },
 
-    ddSelectHtml = '<div class="dd-select"><input class="dd-selected-value" type="hidden" /><a class="dd-selected"></a><span class="dd-pointer dd-pointer-down"></span></div>',
+    //fabioz: removed the hidden inputs (made things misbehave).
+    ddSelectHtml = '<div class="dd-select"><a class="dd-selected"></a><span class="dd-pointer dd-pointer-down"></span></div>',
     ddOptionsHtml = '<ul class="dd-options"></ul>',
 
+    
     //CSS for ddSlick
     ddslickCSS = '<style id="css-ddslick" type="text/css">' +
                 '.dd-select{ border-radius:2px; border:solid 1px #ccc; position:relative; cursor:pointer;}' +
                 '.dd-desc { color:#aaa; display:block; overflow: hidden; font-weight:normal; line-height: 1.4em; }' +
-                '.dd-selected{ overflow:hidden; display:block; padding:10px; font-weight:bold;}' +
+                '.dd-selected{ overflow:hidden; display:block; padding:'+paddingSelect+'; font-weight:'+fontWeigth+';}' +
+                '.dd-selected label{ float: left; margin-left:'+textMarginLeft+';}' +
                 '.dd-pointer{ width:0; height:0; position:absolute; right:10px; top:50%; margin-top:-3px;}' +
                 '.dd-pointer-down{ border:solid 5px transparent; border-top:solid 5px #000; }' +
                 '.dd-pointer-up{border:solid 5px transparent !important; border-bottom:solid 5px #000 !important; margin-top:-8px;}' +
                 '.dd-options{ border:solid 1px #ccc; border-top:none; list-style:none; box-shadow:0px 1px 5px #ddd; display:none; position:absolute; z-index:2000; margin:0; padding:0;background:#fff; overflow:auto;}' +
-                '.dd-option{ padding:10px; display:block; border-bottom:solid 1px #ddd; overflow:hidden; text-decoration:none; color:#333; cursor:pointer;-webkit-transition: all 0.25s ease-in-out; -moz-transition: all 0.25s ease-in-out;-o-transition: all 0.25s ease-in-out;-ms-transition: all 0.25s ease-in-out; }' +
+                '.dd-option{ padding:'+paddingOptions+'; display:block; border-bottom:solid 1px #ddd; overflow:hidden; text-decoration:none; color:#333; cursor:pointer;-webkit-transition: all 0.25s ease-in-out; -moz-transition: all 0.25s ease-in-out;-o-transition: all 0.25s ease-in-out;-ms-transition: all 0.25s ease-in-out; }' +
+                '.dd-option-text{ margin-left:'+textMarginLeft+'; float: left; }' +
                 '.dd-options > li:last-child > .dd-option{ border-bottom:none;}' +
                 '.dd-option:hover{ background:#f3f3f3; color:#000;}' +
                 '.dd-selected-description-truncated { text-overflow: ellipsis; white-space:nowrap; }' +
                 '.dd-option-selected { background:#f6f6f6; }' +
                 '.dd-option-image, .dd-selected-image { vertical-align:middle; float:left; margin-right:5px; max-width:64px;}' +
                 '.dd-image-right { float:right; margin-right:15px; margin-left:5px;}' +
-                '.dd-container{ position:relative;}​ .dd-selected-text { font-weight:bold}​</style>';
+                '.dd-container{ position:relative;}​ .dd-selected-text { font-weight:'+fontWeigth+'}​</style>';
 
     //CSS styles are only added once.
     if ($('#css-ddslick').length <= 0) {
@@ -92,7 +102,9 @@
                 else options.data = $.merge(ddSelect, options.data);
 
                 //Replace HTML select with empty placeholder, keep the original
-                var original = obj, placeholder = $('<div id="' + obj.attr('id') + '"></div>');
+                var id = obj.attr('id');
+                var original = obj, placeholder = $('<div tabindex="0" id="' + id + '"></div>'); //fabioz: add tabindex
+                
                 obj.replaceWith(placeholder);
                 obj = placeholder;
 
@@ -112,18 +124,44 @@
                 if (options.height != null)
                     ddOptions.css({ height: options.height, overflow: 'auto' });
 
+                var maxIndex = 0;
                 //Add ddOptions to the container. Replace with template engine later.
                 $.each(options.data, function (index, item) {
+                    maxIndex += 1;
                     if (item.selected) options.defaultSelectedIndex = index;
                     ddOptions.append('<li>' +
                         '<a class="dd-option">' +
-                            (item.value ? ' <input class="dd-option-value" type="hidden" value="' + item.value + '" />' : '') +
                             (item.imageSrc ? ' <img class="dd-option-image' + (options.imagePosition == "right" ? ' dd-image-right' : '') + '" src="' + item.imageSrc + '" />' : '') +
                             (item.text ? ' <label class="dd-option-text">' + item.text + '</label>' : '') +
                             (item.description ? ' <small class="dd-option-description dd-desc">' + item.description + '</small>' : '') +
                         '</a>' +
                     '</li>');
                 });
+
+                //fabioz: handle browsing with up/down arrows
+                var onKeyDown = function(e){
+                    var i = -1;
+                    var d = $('#'+id);
+                    var curr = d.data('ddslick').selectedIndex;
+                    if(e.keyCode == 40){ // next (down arrow)
+                        i = curr + 1;
+                    }else if(e.keyCode == 38){ // prev (up arrow)
+                        i = curr - 1;
+                    }
+                    if(i >= 0 && i < maxIndex){
+                        d.ddslick('select',{'index':i})
+                    }
+                };
+                
+                placeholder.focusin(function(){
+                    placeholder.keydown(onKeyDown);
+                });
+                placeholder.focusout(function(){
+                    placeholder.unbind('keydown', onKeyDown);
+                });
+                //fabioz: end browsing with up/down arrows
+                
+
 
                 //Save plugin data.
                 var pluginData = {
@@ -172,8 +210,9 @@
     //Public method to select an option by its index
     methods.select = function (options) {
         return this.each(function () {
-            if (options.index)
+            if(typeof options.index != undefined){
                 selectIndex($(this), options.index);
+            }
         });
     }
 
@@ -238,7 +277,7 @@
         //Update or Set plugin data with new selection
         pluginData.selectedIndex = index;
         pluginData.selectedItem = selectedLiItem;
-        pluginData.selectedData = selectedData;
+        pluginData.selectedData = selectedData;        
 
         //If set to display to full html, add html
         if (settings.showSelectedHTML) {
@@ -249,7 +288,7 @@
                 );
 
         }
-            //Else only display text as selection
+        //Else only display text as selection
         else ddSelected.html(selectedData.text);
 
         //Updating selected option value
@@ -274,10 +313,24 @@
     //Private: Close the drop down options
     function open(obj) {
 
+
         var $this = obj.find('.dd-select'),
             ddOptions = $this.siblings('.dd-options'),
             ddPointer = $this.find('.dd-pointer'),
             wasOpen = ddOptions.is(':visible');
+            
+        //fabioz: Don't let it pass the page bottom (yet, with a minimum size)
+        var offset = $this.offset();
+        var h = $this.height();
+        var wh = $(window).height();
+        var diff = wh - (offset.top+h);
+        diff -= 10;
+        if(diff < h*4){ //*4 means: show at least the select + 3 items
+            diff = h*4;
+        }        
+        
+        ddOptions.css({ 'max-height': diff+'px' });
+        //fabioz: end don't let it pass the page bottom (yet, with a minimum size)
 
         //Close all open options (multiple plugins) on the page
         $('.dd-click-off-close').not(ddOptions).slideUp(50);
